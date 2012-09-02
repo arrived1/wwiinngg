@@ -32,8 +32,8 @@ ParticleRenderer::ParticleRenderer(int nParticles)
   m_spriteSize(2.0f),
   m_program(0),
   m_texture(0),
-  m_vbo(0),
-  m_mode(PARTICLE_POINTS)
+  m_mode(PARTICLE_POINTS),
+  m_vbo(0)
 {
     _createTexture(32);
 }
