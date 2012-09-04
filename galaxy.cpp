@@ -68,6 +68,9 @@ float	sh = 480.0f;
 int 	numBlocks = 1;
 int 	numThreadsPerBlock = 256;
 
+// simulation data
+int     box = 100;
+
 // useful clamp macro
 #define LIMIT(x,min,max) { if ((x)>(max)) (x)=(max); if ((x)<(min)) (x)=(min);}
 
@@ -212,7 +215,11 @@ void display(void)
     runCuda();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  
-
+    
+    //box
+    glColor3f(1.0, 1.0, 1.0);
+    glutWireCube(box);
+    
     // view transform
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
