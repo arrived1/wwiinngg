@@ -69,7 +69,7 @@ int 	numBlocks = 1;
 int 	numThreadsPerBlock = 256;
 
 // simulation data
-int     box = 100;
+#define box 100
 
 // useful clamp macro
 #define LIMIT(x,min,max) { if ((x)>(max)) (x)=(max); if ((x)<(min)) (x)=(min);}
@@ -203,9 +203,7 @@ void runCuda(void)
     				   gStep, gApprx, gOffset);
 
     // unmap buffer object
-    CUDA_SAFE_CALL( cudaGLUnmapBufferObject( gVBO) );
-    
-    
+    CUDA_SAFE_CALL( cudaGLUnmapBufferObject( gVBO) );  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -264,14 +262,11 @@ void reshape(int w, int h)
     //
     sw = w;
     sh = h;
-    
-    
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void mouse(int button, int state, int x, int y)
 {
-    
     int mods;
 
     if (state == GLUT_DOWN)
@@ -292,13 +287,11 @@ void mouse(int button, int state, int x, int y)
     ox = x; oy = y;
 
     glutPostRedisplay();
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void motion(int x, int y)
 {
-
     float dx = x - ox;
     float dy = y - oy;
 
@@ -321,8 +314,7 @@ void motion(int x, int y)
     }
     
     ox = x; oy = y;
-	glutPostRedisplay();
-	
+	glutPostRedisplay();	
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -363,7 +355,6 @@ void key(unsigned char key, int /*x*/, int /*y*/)
 ////////////////////////////////////////////////////////////////////////////////
 void special(int /*key*/, int /*x*/, int /*y*/)
 {
-	
 	glutPostRedisplay();
 }
 
@@ -424,7 +415,6 @@ void loadData(char* filename, int bodies)
     	printf("cannot find file...: %s\n", filename);
     	exit(0);
     }
-	
 	//printf("bulge min,max: %f %f %f %f %f %f\n", mx, my, mz, Mx, My, Mz);
 }
 
@@ -466,7 +456,6 @@ void deleteVBO( GLuint* vbo)
 ////////////////////////////////////////////////////////////////////////////////
 int main(int argc, char** argv)
 {
-
     CUT_DEVICE_INIT(argc, argv);
 
     // get number of SMs on this GPU
@@ -552,7 +541,6 @@ int main(int argc, char** argv)
 		delete renderer;
 	
     return 0;
-
 }
 
 
