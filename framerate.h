@@ -28,6 +28,7 @@
 
 #include <sys/time.h>
 #include <stdio.h>
+#include <string.h>
 
 struct timeval frameStartTime, frameEndTime;
 char	appTitle[64] = "OpenGL App";			// window title

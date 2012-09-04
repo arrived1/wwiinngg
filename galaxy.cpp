@@ -7,10 +7,12 @@
 
 #include <GL/glew.h>
 
+// OpenGL Graphics includes
+#include <GL/glew.h>
 #if defined(__APPLE__) || defined(MACOSX)
 #include <GLUT/glut.h>
 #else
-#include <GL/glut.h>
+#include <GL/freeglut.h>
 #endif
 
 #include <paramgl.h>
@@ -173,8 +175,8 @@ void initGL(void)
     createVBO((GLuint*)&gVBO);
     renderer->setVBO(gVBO, numBodies);
     renderer->setSpriteSize(0.4f);
-    renderer->setShaders("../../../data/sprite.vert", 
-    					 "../../../data/sprite.frag");
+    renderer->setShaders("../../../src/wing/data/sprite.vert", 
+    					 "../../../src/wing/data/sprite.frag");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -534,7 +536,7 @@ int main(int argc, char** argv)
 		printf("number of body must be mulples of 4096\n");
 		exit(0);
 	}
-	loadData("../../../data/dubinski.tab", numBodies);
+	loadData("../../../src/wing/data/dubinski.tab", numBodies);
 		
 	// OpenGL: create app window
 	glutInit(&argc, argv);
