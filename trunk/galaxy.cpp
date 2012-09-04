@@ -218,6 +218,19 @@ void display(void)
     glColor3f(1.0, 1.0, 1.0);
     glutWireCube(box);
     
+    //axes
+    glColor3f(1.0, .0, .0);
+    glBegin(GL_LINES);
+       glVertex3f(.0f, .0f, .0f);  //x
+       glVertex3f(box/2 + 20.0f, .0f, .0f);
+       
+       glVertex3f(.0f, .0f, .0f);  //y
+       glVertex3f(.0f, box/2 + 20.0f, .0f);
+       
+       glVertex3f(.0f, .0f, .0f);  //x
+       glVertex3f(.0f, .0f, box/2 + 20.0f);
+    glEnd();
+
     // view transform
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
