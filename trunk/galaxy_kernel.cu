@@ -5,30 +5,30 @@
 #define BSIZE 256
 #define softeningSquared 0.01f		// original plumer softener is 0.025. here the value is square of it.
 #define damping 1.0f				// 0.999f
-#define ep 0.67f						// 0.5f
+#define ep 0.67f					// 0.5f
 
 __device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 {
-    float3 r;
+ //    float3 r;
 
-    r.x = bj.x - bi.x;
-    r.y = bj.y - bi.y;
-    r.z = bj.z - bi.z;
+ //    r.x = bj.x - bi.x;
+ //    r.y = bj.y - bi.y;
+ //    r.z = bj.z - bi.z;
 
-    float distSqr = r.x * r.x + r.y * r.y + r.z * r.z;
-    distSqr += softeningSquared;
+ //    float distSqr = r.x * r.x + r.y * r.y + r.z * r.z;
+ //    distSqr += softeningSquared;
         
-   	float dist = sqrtf(distSqr);
-   	float distCube = dist * dist * dist;
+ //   	float dist = sqrtf(distSqr);
+ //   	float distCube = dist * dist * dist;
 
-	if (distCube < 1.0f) return ai;
+	// if (distCube < 1.0f) return ai;
 	
-    float s = bi.w / distCube;
-    //float s = 1.0f / distCube;
+ //    float s = bi.w / distCube;
+ //    //float s = 1.0f / distCube;
     
-    ai.x += r.x * s * ep;
-    ai.y += r.y * s * ep;
-    ai.z += r.z * s * ep;
+ //    ai.x += r.x * s * ep;
+ //    ai.y += r.y * s * ep;
+ //    ai.z += r.z * s * ep;
 
     return ai;
 }
@@ -37,15 +37,52 @@ __device__ float3 tile_calculation(float4 myPosition, float3 acc)
 {
 	extern __shared__ float4 shPosition[];
 	
-	// #pragma unroll 8
-	// for (unsigned int i = 0; i < BSIZE; i++)
-	// 	acc = bodyBodyInteraction(myPosition, shPosition[i], acc);
+	#pragma unroll 8
+	for (unsigned int i = 0; i < BSIZE; i++)
+		acc = bodyBodyInteraction(myPosition, shPosition[i], acc);
 		
 	return acc;
 }
 
+__device__ void boXCollision(float4& myPosition, float4& myVelocity)
+{
+	// if(idx < n)
+	{
+			if(myPosition.x < -100/2)
+			{
+				myPosition.x = -100 - (myPosition.x);
+				myVelocity.x = -myVelocity.x;
+			}
+			if(myPosition.x > 100/2)
+			{
+				myPosition.x = 100 - (myPosition.x );
+				myVelocity.x = -myVelocity.x;
+			}	
+			// if(tab[idx].r.y  < -box/2)
+			// {
+			// 	tab[idx].r.y = -a - tab[idx].r.y;
+			// 	tab[idx].v.y = -tab[idx].v.y;
+			// }
+			// if(tab[idx].r.y > a/2)
+			// {
+			// 	tab[idx].r.y = a - tab[idx].r.y;
+			// 	tab[idx].v.y = -tab[idx].v.y;
+			// }			
+			// if(tab[idx].r.z < -a/2)
+			// {
+			// 	tab[idx].r.z = -a - tab[idx].r.z;
+			// 	tab[idx].v.z = -tab[idx].v.z;
+			// }
+			// if(tab[idx].r.z > a/2)
+			// {
+			// 	tab[idx].r.z = a - tab[idx].r.z;
+			// 	tab[idx].v.z = -tab[idx].v.z;
+			// }
+	}
+}
+
 __global__ void galaxyKernel(float4* pos, float4 * pdata, unsigned int width, 
-			 unsigned int height, float step, int apprx, int offset)
+			 				 unsigned int height, float step, int apprx, int offset)
 {
 	// shared memory
 	extern __shared__ float4 shPosition[];
@@ -92,6 +129,8 @@ __global__ void galaxyKernel(float4* pos, float4 * pdata, unsigned int width,
     myPosition.y += myVelocity.y * step;
     myPosition.z += myVelocity.z * step;
         
+	boXCollision(myPosition, myVelocity);
+
     __syncthreads();
     
     // update device memory
@@ -101,6 +140,7 @@ __global__ void galaxyKernel(float4* pos, float4 * pdata, unsigned int width,
 	// update vbo
 	pos[pLoc] = make_float4(myPosition.x, myPosition.y, myPosition.z, 1.0f);
 	pos[vLoc] = myVelocity;
+
 }
 
 extern "C" 
@@ -110,8 +150,9 @@ void cudaComputeGalaxy(float4* pos, float4 * pdata, int width, int height,
     dim3 block(16, 16, 1);
     dim3 grid(width / block.x, height / block.y, 1);
     int sharedMemSize = BSIZE * sizeof(float4);
-    galaxyKernel<<<grid, block, sharedMemSize>>>(pos, pdata, width, height, 
-    											 step, apprx, offset);
+    galaxyKernel <<< grid, block, sharedMemSize >>> (pos, pdata, width, height, 
+    											 	 step, apprx, offset);
+    // boXCollision <<< grid, block, sharedMemSize>>> (pos, pdata, width, height);
 }
 
 #endif
