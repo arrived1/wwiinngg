@@ -71,8 +71,7 @@ int 	numThreadsPerBlock = 256;
 
 // simulation data
 #define box 100
-const float aa_M_PI = 3.1415926535897932384626433;
-Skrzydlo skrzydlo;
+Wing skrzydlo;
 
 // useful clamp macro
 #define LIMIT(x,min,max) { if ((x)>(max)) (x)=(max); if ((x)<(min)) (x)=(min);}
@@ -235,7 +234,7 @@ void display(void)
     glEnd();
 
     //wing
-    glColor4f(0.9f, 0.9f, 0.9f, 1.0);
+    glColor4f(0.0f, 0.9f, 0.0f, 1.0);
 
     glDisable(GL_BLEND);
     glEnable(GL_LIGHTING);
@@ -247,10 +246,9 @@ void display(void)
     GLUquadric * o = gluNewQuadric();
     gluQuadricNormals(o, GLU_SMOOTH);
     
-
     glPushMatrix();
     glTranslatef(skrzydlo.x, skrzydlo.y, -box/2);
-    gluCylinder  (o, skrzydlo.promien, skrzydlo.promien, box, 20, 2); // o, r_top, r_bot, wys, ile katow, ?
+    gluCylinder(o, skrzydlo.promien, skrzydlo.promien, box, 20, 2); // o, r_top, r_bot, wys, ile katow, ?
     glPopMatrix();
     gluDeleteQuadric(o);
 
@@ -280,7 +278,7 @@ void display(void)
 
 
     glBegin(GL_TRIANGLE_FAN);
-    for(float kat = 0.0f; kat < (2.0f*aa_M_PI); kat += (aa_M_PI/32.0f))
+    for(float kat = 0.0f; kat < (2.0f*M_PI); kat += (M_PI/32.0f))
     {
         float x = skrzydlo.promien*sin(kat);
         float y = skrzydlo.promien*cos(kat);
@@ -289,14 +287,13 @@ void display(void)
     glEnd();    
 
     glBegin(GL_TRIANGLE_FAN);
-    for(float kat = 0.0f; kat < (2.0f*aa_M_PI); kat += (aa_M_PI/32.0f))
+    for(float kat = 0.0f; kat < (2.0f*M_PI); kat += (M_PI/32.0f))
     {
         float x = skrzydlo.promien*sin(kat);
         float y = skrzydlo.promien*cos(kat);
         glVertex3f(x + skrzydlo.x, y + skrzydlo.y, box/2);
     }
     glEnd();
-
 
 
     // view transform
