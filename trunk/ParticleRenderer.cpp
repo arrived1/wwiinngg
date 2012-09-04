@@ -9,6 +9,7 @@
 #include "ParticleRenderer.h"
 #include <GL/glew.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #if defined(__APPLE__) || defined(MACOSX)
 #include <GLUT/glut.h>
