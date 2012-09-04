@@ -7,7 +7,7 @@ int main()
 
     int const particles = 8192;
 
-    for(int i = -10; i < 11; ++i)
+    for(int i = -30; i < -11; ++i)
         for(int j = -10; j < 10; ++j)
             for(int k = -10; k < 10; ++k)
                 std::cout << 4.98914e-05 << "\t" 
