@@ -42,8 +42,8 @@ int 	gApprx = 4;
 ParticleRenderer* renderer = 0;
 int 	numBodies = 16384;
 int 	gDrawMode = 1;
-float 	gPointSize = 1.0f;
-float	gSpriteSize = scaleFactor*0.25f;
+float 	gPointSize = 3.0f; //1.0f;
+float	gSpriteSize = 0.8f;//scaleFactor*0.25f;
 
 // simulation data storage
 float* 	gPos = 0;
@@ -328,37 +328,35 @@ void motion(int x, int y)
 ////////////////////////////////////////////////////////////////////////////////
 void key(unsigned char key, int /*x*/, int /*y*/)
 {
-
 	switch (key)
 	{
-	case '\033':
-    case 'q':
-        exit(0);
-        break;
-    case 'r':
-    	// reset configuration
-		reset();
-    	break;
-    case 'd':
-    	// change rendering mode
-    	gDrawMode = (gDrawMode+1) % 3;
-    	break;
-    case '=':
-    	// increase point size
-    	gPointSize += scaleFactor*0.0002f;
-    	LIMIT(gPointSize, 1.0f, scaleFactor*1.0f);
-    	gSpriteSize += scaleFactor*0.02f;
-    	LIMIT(gSpriteSize, 0.1f, scaleFactor*2.0f);
-    	break;
-    case '-':
-    	// decrese point size
-    	gPointSize -= scaleFactor*0.0002f;
-    	LIMIT(gPointSize, 1.0f, scaleFactor*1.0f);
-    	gSpriteSize -= scaleFactor*0.02f;
-    	LIMIT(gSpriteSize, 0.1f, scaleFactor*2.0f);
-    	break;
+    	case '\033':
+        case 'q':
+            exit(0);
+            break;
+        case 'r':
+        	// reset configuration
+    		reset();
+        	break;
+        case 'd':
+        	// change rendering mode
+        	gDrawMode = (gDrawMode+1) % 3;
+        	break;
+        case '=':
+        	// increase point size
+        	gPointSize += scaleFactor*0.0002f;
+        	LIMIT(gPointSize, 1.0f, scaleFactor*1.0f);
+        	gSpriteSize += scaleFactor*0.02f;
+        	LIMIT(gSpriteSize, 0.1f, scaleFactor*2.0f);
+        	break;
+        case '-':
+        	// decrese point size
+        	gPointSize -= scaleFactor*0.0002f;
+        	LIMIT(gPointSize, 1.0f, scaleFactor*1.0f);
+        	gSpriteSize -= scaleFactor*0.02f;
+        	LIMIT(gSpriteSize, 0.1f, scaleFactor*2.0f);
+        	break;
     }
-    
 	glutPostRedisplay();
 }
 
@@ -376,39 +374,29 @@ void idle(void)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-#define MAXSTR 256
-float mx,my,mz,Mx,My,Mz;
+//float mx,my,mz,Mx,My,Mz;
 void loadData(char* filename, int bodies)
 {
     int skip = 49152 / bodies;
-    //int skip = 81920 / bodies;
     
     FILE *fin;
     
     if ((fin = fopen(filename, "r")))
     {
-    
-    	char buf[MAXSTR];
-    	float v[7];
-    	int idx = 0;
-    	
-    	// allocate memory
-    	gPos	= (float*)malloc(sizeof(float)*bodies*4);
-    	gVel	= (float*)malloc(sizeof(float)*bodies*4);
-    	 
-    	// total 81920 particles
-    	// 16384 Gal. Disk
-    	// 16384 And. Disk
-    	// 8192  Gal. bulge
-    	// 8192  And. bulge
-    	// 16384 Gal. halo
-    	// 16384 And. halo
-    	int k=0;
-    	for (int i=0; i< bodies; i++,k++)
+        const int maxStringLenght = 256;
+        char buf[maxStringLenght];
+        float v[7];
+        int idx = 0;
+        
+        // allocate memory
+        gPos = (float*)malloc(sizeof(float)*bodies*4);
+        gVel = (float*)malloc(sizeof(float)*bodies*4);
+         
+    	for (int i=0; i< bodies; i++)
     	{
     		// depend on input size...
-    		for (int j=0; j < skip; j++,k++)
-    			fgets (buf, MAXSTR, fin);	// lead line
+    		for (int j=0; j < skip; j++)
+    			fgets(buf, maxStringLenght, fin);	// load line
     		
     		sscanf(buf, "%f %f %f %f %f %f %f", v+0, v+1, v+2, v+3, v+4, v+5, v+6);
     		
@@ -422,7 +410,6 @@ void loadData(char* filename, int bodies)
     		
     		// mass
     		gPos[idx+3] = v[0]*massFactor;
-    		//gPos[idx+3] = 1.0f;
     		//printf("mass : %f\n", gPos[idx+3]);
     		
     		// velocity
@@ -430,7 +417,6 @@ void loadData(char* filename, int bodies)
     		gVel[idx+1] = v[5]*velFactor;
     		gVel[idx+2] = v[6]*velFactor;
     		gVel[idx+3] = 1.0f;
-    		
     	}   
     }
     else
@@ -488,25 +474,6 @@ int main(int argc, char** argv)
     cudaDeviceProp props;
     CUDA_SAFE_CALL( cudaGetDevice(&devID) );
     CUDA_SAFE_CALL( cudaGetDeviceProperties(&props, devID) );
-    
-    // Geforce 8600 (Macbook pro) profile
-	//Device 0: "GeForce 8600M GT"
-	//Major revision number:                         1
-	//Minor revision number:                         1
-	//Total amount of global memory:                 512 MB
-	//Number of multiprocessors:                     4
-	//Number of cores:                               32
-	//Total amount of constant memory:               64 KB
-	//Total amount of shared memory per block:       16 KB
-	//Total number of registers available per block: 8192
-	//Warp size:                                     32
-	//Maximum number of threads per block:           512
-	//Maximum sizes of each dimension of a block:    512 x 512 x 64
-	//Maximum sizes of each dimension of a grid:     65535 x 65535 x 1
-	//Maximum memory pitch:                          262144 bytes
-	//Texture alignment:                             256 bytes
-	//Clock rate:                                    0.75 GHz
-	//Concurrent copy and execution:                 Yes
 
 	// thread block size
     int p = 256;	// width  (number of threads in col within block)
