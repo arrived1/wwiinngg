@@ -27,6 +27,7 @@
 #include <cuda_gl_interop.h>
 
 #include "ParticleRenderer.h"
+#include "wing.h"
 #include "framerate.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -70,6 +71,8 @@ int 	numThreadsPerBlock = 256;
 
 // simulation data
 #define box 100
+const float aa_M_PI = 3.1415926535897932384626433;
+Skrzydlo skrzydlo;
 
 // useful clamp macro
 #define LIMIT(x,min,max) { if ((x)>(max)) (x)=(max); if ((x)<(min)) (x)=(min);}
@@ -230,6 +233,71 @@ void display(void)
        glVertex3f(.0f, .0f, .0f);  //x
        glVertex3f(.0f, .0f, box/2 + 20.0f);
     glEnd();
+
+    //wing
+    glColor4f(0.9f, 0.9f, 0.9f, 1.0);
+
+    glDisable(GL_BLEND);
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT, GL_AMBIENT_AND_DIFFUSE);
+    
+    
+    GLUquadric * o = gluNewQuadric();
+    gluQuadricNormals(o, GLU_SMOOTH);
+    
+
+    glPushMatrix();
+    glTranslatef(skrzydlo.x, skrzydlo.y, -box/2);
+    gluCylinder  (o, skrzydlo.promien, skrzydlo.promien, box, 20, 2); // o, r_top, r_bot, wys, ile katow, ?
+    glPopMatrix();
+    gluDeleteQuadric(o);
+
+    
+    glBegin(GL_QUADS );
+       glVertex3f(skrzydlo.x, skrzydlo.y + skrzydlo.promien, -box/2); //gora 
+       glVertex3f(skrzydlo.x + skrzydlo.dl, 0, -box/2);
+       glVertex3f(skrzydlo.x + skrzydlo.dl, 0, box/2);  
+       glVertex3f(skrzydlo.x, skrzydlo.y + skrzydlo.promien, box/2);
+
+       glVertex3f(skrzydlo.x, skrzydlo.y - skrzydlo.promien, -box/2);  //dol
+       glVertex3f(skrzydlo.x + skrzydlo.dl, 0, -box/2);
+       glVertex3f(skrzydlo.x + skrzydlo.dl, 0, box/2);  
+       glVertex3f(skrzydlo.x, skrzydlo.y - skrzydlo.promien, box/2);
+    glEnd();
+
+
+    glBegin(GL_TRIANGLES);
+       glVertex3f(skrzydlo.x, skrzydlo.y + skrzydlo.promien, -box/2); //gora 
+       glVertex3f(skrzydlo.x, skrzydlo.y - skrzydlo.promien, -box/2);
+       glVertex3f(skrzydlo.x + skrzydlo.dl, 0, -box/2);  
+
+       glVertex3f(skrzydlo.x, skrzydlo.y + skrzydlo.promien, box/2);  //dol
+       glVertex3f(skrzydlo.x, skrzydlo.y - skrzydlo.promien, box/2);
+       glVertex3f(skrzydlo.x + skrzydlo.dl, 0, box/2); 
+    glEnd();
+
+
+    glBegin(GL_TRIANGLE_FAN);
+    for(float kat = 0.0f; kat < (2.0f*aa_M_PI); kat += (aa_M_PI/32.0f))
+    {
+        float x = skrzydlo.promien*sin(kat);
+        float y = skrzydlo.promien*cos(kat);
+        glVertex3f(x + skrzydlo.x, y + skrzydlo.y, -box/2);
+    }
+    glEnd();    
+
+    glBegin(GL_TRIANGLE_FAN);
+    for(float kat = 0.0f; kat < (2.0f*aa_M_PI); kat += (aa_M_PI/32.0f))
+    {
+        float x = skrzydlo.promien*sin(kat);
+        float y = skrzydlo.promien*cos(kat);
+        glVertex3f(x + skrzydlo.x, y + skrzydlo.y, box/2);
+    }
+    glEnd();
+
+
 
     // view transform
     glMatrixMode(GL_MODELVIEW);
