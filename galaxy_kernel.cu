@@ -7,8 +7,7 @@
 #define damping 1.0f				// 0.999f
 #define ep 0.67f						// 0.5f
 
-__device__ float3
-bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
+__device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 {
     float3 r;
 
@@ -34,20 +33,18 @@ bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
     return ai;
 }
 
-__device__ float3
-tile_calculation(float4 myPosition, float3 acc)
+__device__ float3 tile_calculation(float4 myPosition, float3 acc)
 {
 	extern __shared__ float4 shPosition[];
 	
-	#pragma unroll 8
-	for (unsigned int i = 0; i < BSIZE; i++)
-		acc = bodyBodyInteraction(myPosition, shPosition[i], acc);
+	// #pragma unroll 8
+	// for (unsigned int i = 0; i < BSIZE; i++)
+	// 	acc = bodyBodyInteraction(myPosition, shPosition[i], acc);
 		
 	return acc;
 }
 
-__global__ void 
-galaxyKernel(float4* pos, float4 * pdata, unsigned int width, 
+__global__ void galaxyKernel(float4* pos, float4 * pdata, unsigned int width, 
 			 unsigned int height, float step, int apprx, int offset)
 {
 	// shared memory
