@@ -103,7 +103,6 @@ void init(int bodies)
 							   8 * bodies * sizeof(float)));
 	
 	// load inital data set
-	int pCounter;
 	int idx = 0;
 	int vidx = 0;
 	int offset = 0;
@@ -175,8 +174,8 @@ void initGL(void)
     createVBO((GLuint*)&gVBO);
     renderer->setVBO(gVBO, numBodies);
     renderer->setSpriteSize(0.4f);
-    renderer->setShaders("../../../src/wing/data/sprite.vert", 
-    					 "../../../src/wing/data/sprite.frag");
+    renderer->setShaders((char*)"../../../src/wing/data/sprite.vert", 
+    					 (char*)"../../../src/wing/data/sprite.frag");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -320,7 +319,7 @@ void motion(int x, int y)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void key(unsigned char key, int x, int y)
+void key(unsigned char key, int /*x*/, int /*y*/)
 {
 
 	switch (key)
@@ -357,7 +356,7 @@ void key(unsigned char key, int x, int y)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-void special(int key, int x, int y)
+void special(int /*key*/, int /*x*/, int /*y*/)
 {
 	
 	glutPostRedisplay();
@@ -536,7 +535,7 @@ int main(int argc, char** argv)
 		printf("number of body must be mulples of 4096\n");
 		exit(0);
 	}
-	loadData("../../../src/wing/data/dubinski.tab", numBodies);
+	loadData((char*)"../../../src/wing/data/dubinski.tab", numBodies);
 		
 	// OpenGL: create app window
 	glutInit(&argc, argv);
