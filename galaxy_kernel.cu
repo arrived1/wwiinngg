@@ -1,6 +1,7 @@
 #ifndef _GALAXY_KERNEL_H_
 #define _GALAXY_KERNEL_H_
 
+#include "wing.h"
 
 #define BSIZE 256
 #define softeningSquared 0.01f		// original plumer softener is 0.025. here the value is square of it.
@@ -143,7 +144,7 @@ __global__ void galaxyKernel(float4* pos, float4 * pdata, unsigned int width,
 
 extern "C" 
 void cudaComputeGalaxy(float4* pos, float4 * pdata, int width, int height, 
-					   float step, int apprx, int offset)
+					   float step, int apprx, int offset, Wing* wing)
 {
     dim3 block(16, 16, 1);
     dim3 grid(width / block.x, height / block.y, 1);

@@ -14,7 +14,6 @@ class Wing
 		const float mass;
 		float wspol_unoszenia;
 		float kat_natarcia;
-		//float3 v_powietrza;
 		float3 sila_nosna;
 
 		Wing(float3 pos = make_float3(-10, 0, 4), float radius = 4, float length = 30)
@@ -26,7 +25,7 @@ class Wing
 			kat_natarcia(0.f),
 			sila_nosna(make_float3(0.f, 0.f, 0.f))
 		{};
-
+/*
 		void print()
 		{
 		    glColor4f(0.0f, 0.9f, 0.0f, 1.0);
@@ -91,6 +90,7 @@ class Wing
 		    }
 		    glEnd();
 		}
+*/
 };
 
 

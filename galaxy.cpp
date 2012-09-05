@@ -39,7 +39,7 @@ float 	gStep = 0.001f;				// 0.005f
 int 	gOffset = 0;
 int 	gApprx = 4;
 
-// GL drawing object
+// GL drah_wing object
 ParticleRenderer* renderer = 0;
 int 	numBodies = 16384;
 int 	gDrawMode = 1;
@@ -71,7 +71,8 @@ int 	numThreadsPerBlock = 256;
 
 // simulation data
 #define box 100
-Wing wing;
+Wing* h_wing;
+Wing* d_wing;
 
 // useful clamp macro
 #define LIMIT(x,min,max) { if ((x)>(max)) (x)=(max); if ((x)<(min)) (x)=(min);}
@@ -90,8 +91,8 @@ void key(unsigned char key, int x, int y);
 void special(int key, int x, int y);
 void idle(void);
 void loadData(char* filename, int bodies);
-void createVBO( GLuint* vbo);
-void deleteVBO( GLuint* vbo);
+void createVBO(GLuint* vbo);
+void deleteVBO(GLuint* vbo);
 
 ////////////////////////////////////////////////////////////////////////////////
 void init(int bodies)
@@ -100,43 +101,51 @@ void init(int bodies)
 	// blocks per grid
 	numBlocks = bodies / numThreadsPerBlock;
 	
-	// host particle data (position, velocity
-	h_particleData = (float *) malloc (8 * bodies * sizeof(float));
+	// host particle data (position, velocity)
+	h_particleData = (float*) malloc(8 * bodies * sizeof(float));
+	h_wing = (Wing*) malloc(sizeof(Wing));
 	
-	// device particle data
-	CUDA_SAFE_CALL(cudaMalloc( (void**) &d_particleData, 
-							   8 * bodies * sizeof(float)));
-	
+    // device particle data
+	CUDA_SAFE_CALL(cudaMalloc( (void**) &d_particleData, 8 * bodies * sizeof(float)));
+	CUDA_SAFE_CALL(cudaMalloc( (void**) &d_wing, sizeof(Wing)));
+
 	// load inital data set
-	int idx = 0;
-	int vidx = 0;
-	int offset = 0;
-	for (int i = 0; i < bodies; i++)
-	{
-		// float array index
-		idx = i * 4;
-		vidx = bodies*4 + idx;
-		
-		if ((i % 2) == 0)
-			offset = idx;
-		else
-			offset = (idx + (bodies / 2)) % (bodies * 4);
-		// set value from global data storage
-		h_particleData[idx + 0]		= gPos[offset + 0];	// x
-		h_particleData[idx + 1] 	= gPos[offset + 1];	// y
-		h_particleData[idx + 2] 	= gPos[offset + 2];	// z
-		h_particleData[idx + 3] 	= gPos[offset + 3];	// mass
-		h_particleData[vidx + 0] 	= gVel[offset + 0];	// vx
-		h_particleData[vidx + 1]	= gVel[offset + 1];	// vy
-		h_particleData[vidx + 2] 	= gVel[offset + 2];	// vz
-		h_particleData[vidx + 3] 	= gVel[offset + 3];	// padding
-		
-	}
+    int idx = 0;
+    int vidx = 0;
+    int offset = 0;
+    for (int i = 0; i < bodies; i++)
+    {
+        // float array index
+        idx = i * 4;
+        vidx = bodies*4 + idx;
+        
+        if ((i % 2) == 0)
+            offset = idx;
+        else
+            offset = (idx + (bodies / 2)) % (bodies * 4);
+        
+        // set value from global data storage
+        h_particleData[idx + 0]     = gPos[offset + 0]; // x
+        h_particleData[idx + 1]     = gPos[offset + 1]; // y
+        h_particleData[idx + 2]     = gPos[offset + 2]; // z
+        h_particleData[idx + 3]     = gPos[offset + 3]; // mass
+        h_particleData[vidx + 0]    = gVel[offset + 0]; // vx
+        h_particleData[vidx + 1]    = gVel[offset + 1]; // vy
+        h_particleData[vidx + 2]    = gVel[offset + 2]; // vz
+        h_particleData[vidx + 3]    = gVel[offset + 3]; // padding    
+    }
+    
+    //initializing wing
+    h_wing = new Wing();
 	
 	// copy initial value to GPU memory
 	CUDA_SAFE_CALL( cudaMemcpy(d_particleData, h_particleData,
 							   8 * bodies * sizeof(float), 
 							   cudaMemcpyHostToDevice) );
+
+    CUDA_SAFE_CALL( cudaMemcpy(d_wing, h_wing,
+                               sizeof(Wing), 
+                               cudaMemcpyHostToDevice) );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -156,6 +165,9 @@ void reset(void)
 	CUDA_SAFE_CALL( cudaMemcpy(d_particleData, h_particleData,
 							   8 * numBodies * sizeof(float), 
 							   cudaMemcpyHostToDevice) );
+    CUDA_SAFE_CALL( cudaMemcpy(d_wing, h_wing,
+                               sizeof(Wing), 
+                               cudaMemcpyHostToDevice) );
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -186,14 +198,14 @@ void initGL(void)
 ////////////////////////////////////////////////////////////////////////////////
 // CUDA kernel interface
 extern "C" 
-void cudaComputeGalaxy(float4* pos, float4 * pdata, int width, int height, 
-					   float step, int apprx, int offset);
+void cudaComputeGalaxy(float4* pos, float4* pdata, int width, int height, 
+					   float step, int apprx, int offset, Wing* wing);
 
 ////////////////////////////////////////////////////////////////////////////////
 void runCuda(void)
 {
     // map OpenGL buffer object for writing from CUDA
-    float4 *dptr;
+    float4* dptr;
     CUDA_SAFE_CALL( cudaGLMapBufferObject( (void**)&dptr, gVBO) );
 
 	// only compute 1/16 at one time
@@ -201,11 +213,11 @@ void runCuda(void)
 	
     // execute the kernel
     // each block has 16x16 threads, grid 16xX: X will be decided by the # of bodies
-    cudaComputeGalaxy( dptr, (float4*)d_particleData, 256, numBodies / 256, 
-    				   gStep, gApprx, gOffset);
+    cudaComputeGalaxy(dptr, (float4*)d_particleData, 256, numBodies / 256, 
+    				  gStep, gApprx, gOffset, d_wing);
 
     // unmap buffer object
-    CUDA_SAFE_CALL( cudaGLUnmapBufferObject( gVBO) );  
+    CUDA_SAFE_CALL( cudaGLUnmapBufferObject(gVBO) );  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -233,7 +245,7 @@ void display(void)
        glVertex3f(.0f, .0f, box/2 + 20.0f);
     glEnd();
 
-    //wing
+    //h_wing
     glColor4f(0.0f, 0.9f, 0.0f, 1.0);
 
     glDisable(GL_BLEND);
@@ -247,51 +259,51 @@ void display(void)
     gluQuadricNormals(o, GLU_SMOOTH);
     
     glPushMatrix();
-    glTranslatef(wing.pos.x, wing.pos.y, -box/2);
-    gluCylinder(o, wing.radius, wing.radius, box, 20, 2); // o, r_top, r_bot, wys, ile katow, ?
+    glTranslatef(h_wing->pos.x, h_wing->pos.y, -box/2);
+    gluCylinder(o, h_wing->radius, h_wing->radius, box, 20, 2); // o, r_top, r_bot, wys, ile katow, ?
     glPopMatrix();
     gluDeleteQuadric(o);
 
     
     glBegin(GL_QUADS );
-       glVertex3f(wing.pos.x, wing.pos.y + wing.radius, -box/2); //gora 
-       glVertex3f(wing.pos.x + wing.length, 0, -box/2);
-       glVertex3f(wing.pos.x + wing.length, 0, box/2);  
-       glVertex3f(wing.pos.x, wing.pos.y + wing.radius, box/2);
+       glVertex3f(h_wing->pos.x, h_wing->pos.y + h_wing->radius, -box/2); //gora 
+       glVertex3f(h_wing->pos.x + h_wing->length, 0, -box/2);
+       glVertex3f(h_wing->pos.x + h_wing->length, 0, box/2);  
+       glVertex3f(h_wing->pos.x, h_wing->pos.y + h_wing->radius, box/2);
 
-       glVertex3f(wing.pos.x, wing.pos.y - wing.radius, -box/2);  //dol
-       glVertex3f(wing.pos.x + wing.length, 0, -box/2);
-       glVertex3f(wing.pos.x + wing.length, 0, box/2);  
-       glVertex3f(wing.pos.x, wing.pos.y - wing.radius, box/2);
+       glVertex3f(h_wing->pos.x, h_wing->pos.y - h_wing->radius, -box/2);  //dol
+       glVertex3f(h_wing->pos.x + h_wing->length, 0, -box/2);
+       glVertex3f(h_wing->pos.x + h_wing->length, 0, box/2);  
+       glVertex3f(h_wing->pos.x, h_wing->pos.y - h_wing->radius, box/2);
     glEnd();
 
 
     glBegin(GL_TRIANGLES);
-       glVertex3f(wing.pos.x, wing.pos.y + wing.radius, -box/2); //gora 
-       glVertex3f(wing.pos.x, wing.pos.y - wing.radius, -box/2);
-       glVertex3f(wing.pos.x + wing.length, 0, -box/2);  
+       glVertex3f(h_wing->pos.x, h_wing->pos.y + h_wing->radius, -box/2); //gora 
+       glVertex3f(h_wing->pos.x, h_wing->pos.y - h_wing->radius, -box/2);
+       glVertex3f(h_wing->pos.x + h_wing->length, 0, -box/2);  
 
-       glVertex3f(wing.pos.x, wing.pos.y + wing.radius, box/2);  //dol
-       glVertex3f(wing.pos.x, wing.pos.y - wing.radius, box/2);
-       glVertex3f(wing.pos.x + wing.length, 0, box/2); 
+       glVertex3f(h_wing->pos.x, h_wing->pos.y + h_wing->radius, box/2);  //dol
+       glVertex3f(h_wing->pos.x, h_wing->pos.y - h_wing->radius, box/2);
+       glVertex3f(h_wing->pos.x + h_wing->length, 0, box/2); 
     glEnd();
 
 
     glBegin(GL_TRIANGLE_FAN);
     for(float kat = 0.0f; kat < (2.0f*M_PI); kat += (M_PI/32.0f))
     {
-        float x = wing.radius*sin(kat);
-        float y = wing.radius*cos(kat);
-        glVertex3f(x + wing.pos.x, y + wing.pos.y, -box/2);
+        float x = h_wing->radius*sin(kat);
+        float y = h_wing->radius*cos(kat);
+        glVertex3f(x + h_wing->pos.x, y + h_wing->pos.y, -box/2);
     }
     glEnd();    
 
     glBegin(GL_TRIANGLE_FAN);
     for(float kat = 0.0f; kat < (2.0f*M_PI); kat += (M_PI/32.0f))
     {
-        float x = wing.radius*sin(kat);
-        float y = wing.radius*cos(kat);
-        glVertex3f(x + wing.pos.x, y + wing.pos.y, box/2);
+        float x = h_wing->radius*sin(kat);
+        float y = h_wing->radius*cos(kat);
+        glVertex3f(x + h_wing->pos.x, y + h_wing->pos.y, box/2);
     }
     glEnd();
 
