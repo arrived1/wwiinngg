@@ -26,14 +26,14 @@
 
 
 ParticleRenderer::ParticleRenderer(int nParticles)
-: m_pos(0),
+: m_mode(PARTICLE_POINTS),
+  m_pos(0),
   m_numParticles(nParticles),
   m_pointSize(1.0f),
   m_spriteSize(2.0f),
   m_program(0),
   m_texture(0),
-  m_vbo(0),
-  m_mode(PARTICLE_POINTS)
+  m_vbo(0)
 {
     _createTexture(32);
 }
@@ -49,7 +49,7 @@ void ParticleRenderer::setVBO(unsigned int vbo, int numParticles)
     m_numParticles = numParticles;
 }
 
-void ParticleRenderer::_drawPoints(bool color)
+void ParticleRenderer::_drawPoints(bool /*color*/)
 {
     if (!m_vbo)
     {
