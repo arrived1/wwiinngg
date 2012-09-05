@@ -1,6 +1,7 @@
 #ifndef _GALAXY_KERNEL_H_
 #define _GALAXY_KERNEL_H_
 
+#include "operatorsCuda.h"
 #include "wing.h"
 
 #define BSIZE 256
@@ -8,6 +9,8 @@
 #define damping 1.0f				// 0.999f
 #define ep 0.67f					// 0.5f
 #define box 100						// box size
+#define particleRadius 0.08f
+#define particleMass 1.f
 
 __device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
 {
@@ -80,8 +83,90 @@ __device__ void boxCollision(float4& myPosition, float4& myVelocity)
 	}
 }
 
+__device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing)
+//__global__ void kernel5(Punkt *tab, int n, int a, float dt, Skrzydlo *tmp_skrzy)
+{
+	float aa_M_PI = 0.31830988618379067154;
+	float e = 0.9f;
+
+	float3 force = make_float3(.0f, .0f, .0f);
+		
+	//gorny plat
+	if(myPosition.x >= wing->pos.x && 
+	   myPosition.x <= wing->pos.x + wing->length)
+	{
+		float x1 = wing->pos.x ;				//lewa gora
+		float y1 = wing->pos.y + wing->radius;
+		float x2 = wing->pos.x + wing->length;	//tyl
+		float y2 = 0;
+		float x3 = wing->pos.x;					//lewy dol
+		float y3 = wing->pos.y - wing->radius;
+
+		float test_y_gora = (y2 - y1)*(myPosition.x - x1) / (x2 - x1) + y1;	//wysokosc skrzydla dla danego x 
+		float test_y_dol = (y2 - y3)*(myPosition.x - x3) / (x2 - x3) + y3;	//wysokosc skrzydla dla danego x 
+		
+		//gormy plat
+		if(myPosition.y + particleRadius <= test_y_gora && 
+		   myPosition.y + particleRadius > test_y_dol)	
+		{
+			myPosition.y = test_y_gora + particleRadius;
+			
+			float kat = atan(wing->radius/wing->length) * 180 / aa_M_PI;
+			myVelocity.x += myVelocity.y * sin(kat);
+			myVelocity.y = -myVelocity.y * e;	
+
+			//wing->sila_nosna = dodaj(wing->sila_nosna, tab[idx].f);
+			wing->sila_nosna = wing->sila_nosna + force;
+
+		}
+		//dolny plat
+		if(myPosition.y + particleRadius >= test_y_dol && 
+		   myPosition.y + particleRadius < test_y_gora )		
+		{
+			myPosition.y = test_y_dol - particleRadius;
+			myVelocity.y = -myVelocity.y * e;	
+
+			//wing->sila_nosna = dodaj(wing->sila_nosna, tab[idx].f);
+			wing->sila_nosna = wing->sila_nosna + force;
+		}
+	}
+	
+
+	// walec
+	float next_distance = length(myPosition - wing->pos);
+	float r = particleRadius + wing->radius;
+
+	if(next_distance <= r)
+	{
+		float3 n = myPosition - wing->pos;
+		normalize(n);
+
+		// float masa_zredukowana = 1 / (1/particleMass + 1/particleMass);
+		// float Dvn = myVelocity * n; //iloczyn skalarny
+
+		// float JJ = -masa_zredukowana * (e+1.0f) * Dvn;
+		
+		// float3 JJIloczynSkalarny = (n * (JJ/particleMass));
+		// float3 uI;// = myVelocity + JJIloczynSkalarny; //iloczyn skalarny
+		// uI.x = myVelocity.x + JJIloczynSkalarny.x;
+		// uI.y = myVelocity.y + JJIloczynSkalarny.y;
+		// uI.z = myVelocity.z + JJIloczynSkalarny.z;
+		
+		//myPosition = myPosition + (n * (r-next_distance)); //iloczyn skalarny
+		float3 iloczynSkalarny = (n * (r-next_distance));
+		myPosition.x = iloczynSkalarny.x;
+		myPosition.y = iloczynSkalarny.y;
+		myPosition.z = iloczynSkalarny.z;
+
+		//przygotuj_ruch(tab, idx, dt);
+		wing->sila_nosna = wing->sila_nosna + force;
+
+	}
+}
+
 __global__ void galaxyKernel(float4* pos, float4 * pdata, unsigned int width, 
-			 				 unsigned int height, float step, int apprx, int offset)
+			 				 unsigned int height, float step, int apprx, int offset,
+			 				 Wing* wing)
 {
 	// shared memory
 	extern __shared__ float4 shPosition[];
@@ -129,6 +214,7 @@ __global__ void galaxyKernel(float4* pos, float4 * pdata, unsigned int width,
     myPosition.z += myVelocity.z * step;
         
 	boxCollision(myPosition, myVelocity);
+	wingCollision(myPosition, myVelocity, wing);
 
     __syncthreads();
     
@@ -150,7 +236,7 @@ void cudaComputeGalaxy(float4* pos, float4 * pdata, int width, int height,
     dim3 grid(width / block.x, height / block.y, 1);
     int sharedMemSize = BSIZE * sizeof(float4);
     galaxyKernel <<< grid, block, sharedMemSize >>> (pos, pdata, width, height, 
-    											 	 step, apprx, offset);
+    											 	 step, apprx, offset, wing);
 }
 
 #endif
