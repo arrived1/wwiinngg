@@ -92,76 +92,63 @@ __device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing
 	float3 force = make_float3(.0f, .0f, .0f);
 		
 	//gorny plat
-	if(myPosition.x >= wing->pos.x && 
-	   myPosition.x <= wing->pos.x + wing->length)
-	{
-		float x1 = wing->pos.x ;				//lewa gora
-		float y1 = wing->pos.y + wing->radius;
-		float x2 = wing->pos.x + wing->length;	//tyl
-		float y2 = 0;
-		float x3 = wing->pos.x;					//lewy dol
-		float y3 = wing->pos.y - wing->radius;
+	// if(myPosition.x >= wing->pos.x && 
+	//    myPosition.x <= wing->pos.x + wing->length)
+	// {
+	// 	float x1 = wing->pos.x ;				//lewa gora
+	// 	float y1 = wing->pos.y + wing->radius;
+	// 	float x2 = wing->pos.x + wing->length;	//tyl
+	// 	float y2 = 0;
+	// 	float x3 = wing->pos.x;					//lewy dol
+	// 	float y3 = wing->pos.y - wing->radius;
 
-		float test_y_gora = (y2 - y1)*(myPosition.x - x1) / (x2 - x1) + y1;	//wysokosc skrzydla dla danego x 
-		float test_y_dol = (y2 - y3)*(myPosition.x - x3) / (x2 - x3) + y3;	//wysokosc skrzydla dla danego x 
+	// 	float test_y_gora = (y2 - y1)*(myPosition.x - x1) / (x2 - x1) + y1;	//wysokosc skrzydla dla danego x 
+	// 	float test_y_dol = (y2 - y3)*(myPosition.x - x3) / (x2 - x3) + y3;	//wysokosc skrzydla dla danego x 
 		
-		//gormy plat
-		if(myPosition.y + particleRadius <= test_y_gora && 
-		   myPosition.y + particleRadius > test_y_dol)	
-		{
-			myPosition.y = test_y_gora + particleRadius;
+	// 	//gormy plat
+	// 	if(myPosition.y + particleRadius <= test_y_gora && 
+	// 	   myPosition.y + particleRadius > test_y_dol)	
+	// 	{
+	// 		myPosition.y = test_y_gora + particleRadius;
 			
-			float kat = atan(wing->radius/wing->length) * 180 / aa_M_PI;
-			myVelocity.x += myVelocity.y * sin(kat);
-			myVelocity.y = -myVelocity.y * e;	
+	// 		float kat = atan(wing->radius/wing->length) * 180 / aa_M_PI;
+	// 		myVelocity.x += myVelocity.y * sin(kat);
+	// 		myVelocity.y = -myVelocity.y * e;	
 
-			//wing->sila_nosna = dodaj(wing->sila_nosna, tab[idx].f);
-			wing->sila_nosna = wing->sila_nosna + force;
+	// 		//wing->sila_nosna = dodaj(wing->sila_nosna, tab[idx].f);
+	// 		wing->sila_nosna = wing->sila_nosna + force;
 
-		}
-		//dolny plat
-		if(myPosition.y + particleRadius >= test_y_dol && 
-		   myPosition.y + particleRadius < test_y_gora )		
-		{
-			myPosition.y = test_y_dol - particleRadius;
-			myVelocity.y = -myVelocity.y * e;	
+	// 	}
+	// 	//dolny plat
+	// 	if(myPosition.y + particleRadius >= test_y_dol && 
+	// 	   myPosition.y + particleRadius < test_y_gora )		
+	// 	{
+	// 		myPosition.y = test_y_dol - particleRadius;
+	// 		myVelocity.y = -myVelocity.y * e;	
 
-			//wing->sila_nosna = dodaj(wing->sila_nosna, tab[idx].f);
-			wing->sila_nosna = wing->sila_nosna + force;
-		}
-	}
+	// 		//wing->sila_nosna = dodaj(wing->sila_nosna, tab[idx].f);
+	// 		wing->sila_nosna = wing->sila_nosna + force;
+	// 	}
+	// }
 	
 
 	// walec
-	float next_distance = length(myPosition - wing->pos);
-	float r = particleRadius + wing->radius;
+	float3 wingPos = make_float3(wing->pos.x, wing->pos.y, myPosition.z); // teraz czaska jest na przeciwko szkrzydla
+	float distance = length(myPosition - wingPos);
+	float radius = particleRadius + wing->radius;
 
-	if(next_distance <= r)
-	{
-		float3 n = myPosition - wing->pos;
-		normalize(n);
-
-		// float masa_zredukowana = 1 / (1/particleMass + 1/particleMass);
-		// float Dvn = myVelocity * n; //iloczyn skalarny
-
-		// float JJ = -masa_zredukowana * (e+1.0f) * Dvn;
+	if(distance <= radius)
+	{	
+		myVelocity.x = -myVelocity.x;
 		
-		// float3 JJIloczynSkalarny = (n * (JJ/particleMass));
-		// float3 uI;// = myVelocity + JJIloczynSkalarny; //iloczyn skalarny
-		// uI.x = myVelocity.x + JJIloczynSkalarny.x;
-		// uI.y = myVelocity.y + JJIloczynSkalarny.y;
-		// uI.z = myVelocity.z + JJIloczynSkalarny.z;
-		
-		//myPosition = myPosition + (n * (r-next_distance)); //iloczyn skalarny
-		float3 iloczynSkalarny = (n * (r-next_distance));
-		myPosition.x = iloczynSkalarny.x;
-		myPosition.y = iloczynSkalarny.y;
-		myPosition.z = iloczynSkalarny.z;
+		float tooFar = radius - distance;
+		float3 myPosTmp = make_float3(myPosition.x, myPosition.y, myPosition.z);
+		normalize(myPosTmp);
 
-		//przygotuj_ruch(tab, idx, dt);
-		wing->sila_nosna = wing->sila_nosna + force;
 
-	}
+		myPosTmp = myPosTmp + (myPosTmp * tooFar);
+		myPosition = make_float4(myPosTmp.x, myPosTmp.y, myPosTmp.z, 1);
+	} 
 }
 
 __global__ void galaxyKernel(float4* pos, float4 * pdata, unsigned int width, 
