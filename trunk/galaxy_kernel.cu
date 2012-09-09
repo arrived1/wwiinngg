@@ -9,11 +9,32 @@
 #define damping 1.0f				// 0.999f
 #define ep 0.67f					// 0.5f
 #define box 100						// box size
-#define particleRadius 0.08f
+#define particleRadius 0.04f
 #define particleMass 1.f
 
-__device__ float3 bodyBodyInteraction(float4& bi, float4 bj, float3 ai)
+__device__ float3 bodyBodyInteraction(float4& particle1, float4& myVelocity, float4 particle2, float3 ai)
 {
+	float3 p1 = make_float3(particle1.x, particle1.y, particle1.z);
+	float3 p2 = make_float3(particle2.x, particle2.y, particle2.z);
+
+	float distance = length(p2 - p1);
+	float radius = particleRadius * 2;
+
+	if(distance <= radius)
+	{
+		//myVelocity = myVelocity * (-1);
+
+		float tooFar = ((radius - distance) / 2) + 0.02f;
+		float3 p1Tmp = make_float3(p1.x, p1.y, p1.z);
+		normalize(p1Tmp);
+
+
+		//p1Tmp = p1Tmp + (p1Tmp * tooFar);
+		//particle1 = make_float4(p1Tmp.x, p1Tmp.y, p1Tmp.z, 1);
+	}
+
+
+
  //    float3 r;
 
  //    r.x = bj.x - bi.x;
@@ -38,13 +59,13 @@ __device__ float3 bodyBodyInteraction(float4& bi, float4 bj, float3 ai)
     return ai;
 }
 
-__device__ float3 tile_calculation(float4& myPosition, float3 acc)
+__device__ float3 tile_calculation(float4& myPosition, float4& myVelocity, float3 acc)
 {
 	extern __shared__ float4 shPosition[];
 	
 	#pragma unroll 8
 	for (unsigned int i = 0; i < BSIZE; i++)
-		acc = bodyBodyInteraction(myPosition, shPosition[i], acc);
+		acc = bodyBodyInteraction(myPosition, myVelocity, shPosition[i], acc);
 		
 	return acc;
 }
@@ -140,9 +161,7 @@ __device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing
 
 	if(distance <= radius)
 	{	
-		myVelocity.x = -myVelocity.x;
-		myVelocity.y = -myVelocity.y;
-		myVelocity.z = -myVelocity.z;
+		myVelocity = myVelocity * (-1);
 		
 		// is that rly needed?
 		// float tooFar = radius - distance;
@@ -155,7 +174,7 @@ __device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing
 	} 
 }
 
-__global__ void galaxyKernel(float4* pos, float4 * pdata, unsigned int width, 
+__global__ void galaxyKernel(float4* pos, float4* pdata, unsigned int width, 
 			 				 unsigned int height, float step, int apprx, int offset,
 			 				 Wing* wing)
 {
@@ -185,7 +204,7 @@ __global__ void galaxyKernel(float4* pos, float4 * pdata, unsigned int width,
 
 		__syncthreads();
 		
-		acc = tile_calculation(myPosition, acc);
+		acc = tile_calculation(myPosition, myVelocity, acc);
 		
 		__syncthreads();		
 	}
