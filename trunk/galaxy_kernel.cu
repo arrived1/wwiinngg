@@ -84,10 +84,9 @@ __device__ void boxCollision(float4& myPosition, float4& myVelocity)
 }
 
 __device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing)
-//__global__ void kernel5(Punkt *tab, int n, int a, float dt, Skrzydlo *tmp_skrzy)
 {
 	float aa_M_PI = 0.31830988618379067154;
-	float e = 0.9f;
+	float e = 0.9f; // strata energi
 
 	float3 force = make_float3(.0f, .0f, .0f);
 		
@@ -143,6 +142,7 @@ __device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing
 		myVelocity.y = -myVelocity.y;
 		myVelocity.z = -myVelocity.z;
 		
+		// is that rly needed?
 		// float tooFar = radius - distance;
 		// float3 myPosTmp = make_float3(myPosition.x, myPosition.y, myPosition.z);
 		// normalize(myPosTmp);
