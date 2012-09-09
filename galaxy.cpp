@@ -62,8 +62,8 @@ float 	camera_trans_lag[] = {0, 6*scaleFactor, -45*scaleFactor};
 float 	camera_rot_lag[]   = {0, 0, 0};
 const float inertia        = 0.1;
 
-float   sw = 720.0f;
-float	sh = 480.0f;
+float   sw = 1024.0f;
+float	sh = 768.0f;
 
 // cuda related...
 int 	numBlocks = 1;
@@ -393,8 +393,8 @@ void motion(int x, int y)
     else if (buttonState & 2) 
     {
         // middle = translate
-        camera_trans[0] += 0.005f * fabs(camera_trans[2]) * dx * (720.0f/sw) / 2.0;
-        camera_trans[1] -= 0.005f * fabs(camera_trans[2]) * dy * (480.0f/sh) / 2.0;
+        camera_trans[0] += 0.005f * fabs(camera_trans[2]) * dx * (1024.0f/sw) / 2.0;
+        camera_trans[1] -= 0.005f * fabs(camera_trans[2]) * dy * (768.0f/sh) / 2.0;
     }
     else if (buttonState & 1) 
     {
@@ -593,7 +593,7 @@ int main(int argc, char** argv)
 	// OpenGL: create app window
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
-	glutInitWindowSize(720, 480);
+	glutInitWindowSize(1024, 768);
 	char wtitle[256];
 	sprintf(wtitle, "CUDA Galaxy Simulation (%d bodies)", numBodies); 
 	glutCreateWindow(wtitle);
