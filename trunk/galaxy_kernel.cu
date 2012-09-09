@@ -9,7 +9,7 @@
 #define damping 1.0f				// 0.999f
 #define ep 0.67f					// 0.5f
 #define box 100						// box size
-#define particleRadius 0.04f
+#define particleRadius 0.02f
 #define particleMass 1.f
 
 __device__ float3 bodyBodyInteraction(float4& particle1, float4& myVelocity, float4 particle2, float3 ai)
@@ -18,19 +18,31 @@ __device__ float3 bodyBodyInteraction(float4& particle1, float4& myVelocity, flo
 	float3 p2 = make_float3(particle2.x, particle2.y, particle2.z);
 
 	float distance = length(p2 - p1);
-	float radius = particleRadius * 2;
+	float radius = particleRadius + particleRadius;
 
 	if(distance <= radius)
 	{
-		//myVelocity = myVelocity * (-1);
+		// myVelocity.x = myVelocity.x * (-1);
+		// myVelocity.y = myVelocity.y * (-1);
+		// myVelocity.z = myVelocity.z * (-1);
 
-		float tooFar = ((radius - distance) / 2) + 0.02f;
-		float3 p1Tmp = make_float3(p1.x, p1.y, p1.z);
-		normalize(p1Tmp);
+		float zaDaleko = ((radius - distance) / 2) + 0.01f; // odsuwam troche dalej zeby nie bylo kolejnej kolizji
+		
+		// float3 velocityTmp = make_float3(myVelocity.x, myVelocity.y, myVelocity.z);
+		float3 velocityTmp;
+		velocityTmp.x = myVelocity.x;
+		velocityTmp.y = myVelocity.y;
+		velocityTmp.z = myVelocity.z;
 
+		velocityTmp = velocityTmp * (
+			1);
+		float3 odsun = versor(velocityTmp) * zaDaleko;
 
-		//p1Tmp = p1Tmp + (p1Tmp * tooFar);
-		//particle1 = make_float4(p1Tmp.x, p1Tmp.y, p1Tmp.z, 1);
+		particle1 = make_float4(particle1.x + odsun.x,
+								particle1.y + odsun.y,
+								particle1.z + odsun.z,
+								0);
+
 	}
 
 
