@@ -12,7 +12,7 @@
 #define particleRadius 0.08f
 #define particleMass 1.f
 
-__device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
+__device__ float3 bodyBodyInteraction(float4& bi, float4 bj, float3 ai)
 {
  //    float3 r;
 
@@ -38,7 +38,7 @@ __device__ float3 bodyBodyInteraction(float4 bi, float4 bj, float3 ai)
     return ai;
 }
 
-__device__ float3 tile_calculation(float4 myPosition, float3 acc)
+__device__ float3 tile_calculation(float4& myPosition, float3 acc)
 {
 	extern __shared__ float4 shPosition[];
 	
@@ -53,13 +53,15 @@ __device__ void boxCollision(float4& myPosition, float4& myVelocity)
 {
 	if(myPosition.x < -box/2)
 	{
-		myPosition.x = -box - (myPosition.x);
-		myVelocity.x = -myVelocity.x;
+		myPosition.x += box;
+		//myPosition.x = -box - (myPosition.x);
+		//myVelocity.x = -myVelocity.x;
 	}
 	if(myPosition.x > box/2)
 	{
-		myPosition.x = box - (myPosition.x);
-		myVelocity.x = -myVelocity.x;
+		myPosition.x -= box;
+		//myPosition.x = box - (myPosition.x);
+		//myVelocity.x = -myVelocity.x;
 	}	
 	if(myPosition.y  < -box/2)
 	{
@@ -90,7 +92,7 @@ __device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing
 
 	float3 force = make_float3(.0f, .0f, .0f);
 		
-	gorny plat
+	//gorny plat
 	if(myPosition.x >= wing->pos.x && 
 	   myPosition.x <= wing->pos.x + wing->length)
 	{
