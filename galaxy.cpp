@@ -424,6 +424,7 @@ void key(unsigned char key, int /*x*/, int /*y*/)
         case 'r':
         	// reset configuration
     		reset();
+            //h_wing->resetWingPosition();
         	break;
         case 'd':
         	// change rendering mode
@@ -434,17 +435,11 @@ void key(unsigned char key, int /*x*/, int /*y*/)
             break;
         case '=':
         	// increase point size
-        	gPointSize += scaleFactor*0.0002f;
-        	LIMIT(gPointSize, 1.0f, scaleFactor*1.0f);
-        	gSpriteSize += scaleFactor*0.02f;
-        	LIMIT(gSpriteSize, 0.1f, scaleFactor*2.0f);
+        	h_wing->increase();
         	break;
         case '-':
         	// decrese point size
-        	gPointSize -= scaleFactor*0.0002f;
-        	LIMIT(gPointSize, 1.0f, scaleFactor*1.0f);
-        	gSpriteSize -= scaleFactor*0.02f;
-        	LIMIT(gSpriteSize, 0.1f, scaleFactor*2.0f);
+        	h_wing->decrease();
         	break;
     }
 	glutPostRedisplay();

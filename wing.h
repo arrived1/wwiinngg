@@ -8,13 +8,14 @@
 class Wing
 {
 	public:
-		const float3 pos;
+		float3 pos;
 		const float radius;
 		const float length;
 		const float mass;
 		float wspol_unoszenia;
 		float kat_natarcia;
 		float3 sila_nosna;
+		float move;
 
 		Wing(float3 pos = make_float3(-10, 0, 4), float radius = 4, float length = 30)
 			: pos(pos), 
@@ -23,8 +24,26 @@ class Wing
 			mass(10),
 			wspol_unoszenia(1),
 			kat_natarcia(0.f),
-			sila_nosna(make_float3(0.f, 0.f, 0.f))
+			sila_nosna(make_float3(0.f, 0.f, 0.f)),
+			move(0.2)
 		{};
+
+		void increase()
+		{
+			if(pos.y <  2.6)
+				pos.y += move;
+		}
+
+		void decrease()
+		{
+			if(pos.y > -2.6)
+				pos.y -= move;
+		}
+
+		void resetWingPosition()
+		{
+			pos.y = 0;
+		}
 /*
 		void print()
 		{
