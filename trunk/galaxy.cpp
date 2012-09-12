@@ -74,6 +74,8 @@ int 	numThreadsPerBlock = 256;
 Wing* h_wing;
 Wing* d_wing;
 
+bool pauze = false;
+
 // useful clamp macro
 #define LIMIT(x,min,max) { if ((x)>(max)) (x)=(max); if ((x)<(min)) (x)=(min);}
 
@@ -161,6 +163,8 @@ void reset(void)
 	camera_trans_lag[2] = -45 * scaleFactor;
 	camera_rot_lag[0] = camera_rot_lag[1] = camera_rot_lag[2] = 0;
 	
+    pauze = false;
+
 	// reset dataset
 	CUDA_SAFE_CALL( cudaMemcpy(d_particleData, h_particleData,
 							   8 * numBodies * sizeof(float), 
@@ -213,8 +217,9 @@ void runCuda(void)
 	
     // execute the kernel
     // each block has 16x16 threads, grid 16xX: X will be decided by the # of bodies
-    cudaComputeGalaxy(dptr, (float4*)d_particleData, 256, numBodies / 256, 
-    				  gStep, gApprx, gOffset, d_wing);
+    if(!pauze)
+        cudaComputeGalaxy(dptr, (float4*)d_particleData, 256, numBodies / 256, 
+    				      gStep, gApprx, gOffset, d_wing);
 
     // unmap buffer object
     CUDA_SAFE_CALL( cudaGLUnmapBufferObject(gVBO) );  
@@ -424,6 +429,9 @@ void key(unsigned char key, int /*x*/, int /*y*/)
         	// change rendering mode
         	gDrawMode = (gDrawMode+1) % 3;
         	break;
+        case 'p':
+            pauze = !pauze;
+            break;
         case '=':
         	// increase point size
         	gPointSize += scaleFactor*0.0002f;

@@ -9,7 +9,7 @@
 #define damping 1.0f				// 0.999f
 #define ep 0.67f					// 0.5f
 #define box 100						// box size
-#define particleRadius 0.02f
+#define particleRadius 0.05f
 #define particleMass 1.f
 
 __device__ float3 bodyBodyInteraction(float4& particle1, float4& myVelocity, float4 particle2, float3 ai)
