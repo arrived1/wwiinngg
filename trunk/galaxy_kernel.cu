@@ -12,6 +12,9 @@
 #define particleRadius 0.05f
 #define particleMass 1.f
 
+extern Wing* h_wing;
+extern Wing* d_wing;
+
 __device__ float3 bodyBodyInteraction(float4& particle1, float4& myVelocity, float4 particle2, float3 ai)
 {
 	float3 p1 = make_float3(particle1.x, particle1.y, particle1.z);
@@ -46,28 +49,8 @@ __device__ float3 bodyBodyInteraction(float4& particle1, float4& myVelocity, flo
 	}
 
 
-
- //    float3 r;
-
- //    r.x = bj.x - bi.x;
- //    r.y = bj.y - bi.y;
- //    r.z = bj.z - bi.z;
-
- //    float distSqr = r.x * r.x + r.y * r.y + r.z * r.z;
- //    distSqr += softeningSquared;
-        
- //   	float dist = sqrtf(distSqr);
- //   	float distCube = dist * dist * dist;
-
-	// if (distCube < 1.0f) return ai;
-	
- //    float s = bi.w / distCube;
- //    //float s = 1.0f / distCube;
-    
- //    ai.x += r.x * s * ep;
- //    ai.y += r.y * s * ep;
- //    ai.z += r.z * s * ep;
-
+	float3 wind = make_float3(50.0, -0.0, 0.0);
+	ai = wind; 
     return ai;
 }
 
@@ -118,7 +101,7 @@ __device__ void boxCollision(float4& myPosition, float4& myVelocity)
 	}
 }
 
-__device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing)
+__device__ void wingCollision(float4& myPosition, float4& myVelocity, float3 acc, Wing* wing)
 {
 	float aa_M_PI = 0.31830988618379067154;
 	float e = 0.9f; // strata energi
@@ -150,7 +133,7 @@ __device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing
 			myVelocity.y = -myVelocity.y * e;	
 
 			//wing->sila_nosna = dodaj(wing->sila_nosna, tab[idx].f);
-			wing->sila_nosna = wing->sila_nosna + force;
+			wing->sila_nosna = wing->sila_nosna + acc;
 
 		}
 		//dolny plat
@@ -161,7 +144,7 @@ __device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing
 			myVelocity.y = -myVelocity.y * e;	
 
 			//wing->sila_nosna = dodaj(wing->sila_nosna, tab[idx].f);
-			wing->sila_nosna = wing->sila_nosna + force;
+			wing->sila_nosna = wing->sila_nosna + acc;
 		}
 	}
 	
@@ -174,6 +157,7 @@ __device__ void wingCollision(float4& myPosition, float4& myVelocity, Wing* wing
 	if(distance <= radius)
 	{	
 		myVelocity = myVelocity * (-1);
+		wing->sila_nosna = wing->sila_nosna + acc;
 		
 		// is that rly needed?
 		// float tooFar = radius - distance;
@@ -236,7 +220,7 @@ __global__ void galaxyKernel(float4* pos, float4* pdata, unsigned int width,
     myPosition.z += myVelocity.z * step;
         
 	boxCollision(myPosition, myVelocity);
-	wingCollision(myPosition, myVelocity, wing);
+	wingCollision(myPosition, myVelocity, acc, wing);
 
     __syncthreads();
     

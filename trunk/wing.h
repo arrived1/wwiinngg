@@ -44,6 +44,17 @@ class Wing
 		{
 			pos.y = 0;
 		}
+
+		float getForce()
+		{
+			return sqrt(sila_nosna.x * sila_nosna.x + sila_nosna.y * sila_nosna.y + sila_nosna.z * sila_nosna.z);
+		}
+
+		void resetForce()
+		{
+			sila_nosna = make_float3(0.f, 0.f, 0.f);
+		}
+
 /*
 		void print()
 		{
