@@ -218,8 +218,14 @@ void runCuda(void)
     // execute the kernel
     // each block has 16x16 threads, grid 16xX: X will be decided by the # of bodies
     if(!pauze)
+    {
         cudaComputeGalaxy(dptr, (float4*)d_particleData, 256, numBodies / 256, 
     				      gStep, gApprx, gOffset, d_wing);
+
+        CUDA_SAFE_CALL(cudaMemcpy(h_wing, d_wing,
+                       sizeof(Wing), 
+                       cudaMemcpyDeviceToHost));
+    }
 
     // unmap buffer object
     CUDA_SAFE_CALL( cudaGLUnmapBufferObject(gVBO) );  
@@ -249,6 +255,39 @@ void display(void)
        glVertex3f(.0f, .0f, .0f);  //x
        glVertex3f(.0f, .0f, box/2 + 20.0f);
     glEnd();
+
+    //sila
+    GLUquadric * oo = gluNewQuadric();
+    gluQuadricNormals(oo, GLU_SMOOTH);
+
+    glColor3f(1.0, 1.0, .0);
+
+    glPushMatrix();
+
+    glRotatef(270, 1.f, 0.f, 0.f);  //walec
+    glTranslatef(h_wing->pos.x + h_wing->length / 2, 0, 0);   //stozek
+    gluCylinder(oo, 1, 1, h_wing->getForce() , 20, 2);   // o, r_top, r_bot, wys, ile katow, ?
+
+    glPopMatrix();
+
+    gluDeleteQuadric(oo);
+
+
+    GLUquadric * b = gluNewQuadric();
+    gluQuadricNormals(b, GLU_SMOOTH);
+
+    if(h_wing->getForce() > 0)
+    {
+        glPushMatrix();
+        glRotatef(270, 1.f, 0.f, 0.f);  //walec
+        glTranslatef(h_wing->pos.x + h_wing->length / 2, 0, h_wing->getForce());
+        h_wing->resetForce();
+        glutSolidCone(2, 10, 20, 2);    // o, r_top, r_bot, wys, ile katow, ?
+        glPopMatrix();
+        gluDeleteQuadric(b);
+    }
+
+
 
     //h_wing
     glColor4f(0.0f, 0.9f, 0.0f, 1.0);
