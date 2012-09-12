@@ -26,22 +26,22 @@ __device__ float3 bodyBodyInteraction(float4& particle1, float4& myVelocity, flo
 		// myVelocity.y = myVelocity.y * (-1);
 		// myVelocity.z = myVelocity.z * (-1);
 
-		float zaDaleko = ((radius - distance) / 2) + 0.01f; // odsuwam troche dalej zeby nie bylo kolejnej kolizji
+		// float zaDaleko = ((radius - distance) / 2) + 0.01f; // odsuwam troche dalej zeby nie bylo kolejnej kolizji
 		
-		// float3 velocityTmp = make_float3(myVelocity.x, myVelocity.y, myVelocity.z);
-		float3 velocityTmp;
-		velocityTmp.x = myVelocity.x;
-		velocityTmp.y = myVelocity.y;
-		velocityTmp.z = myVelocity.z;
+		// // float3 velocityTmp = make_float3(myVelocity.x, myVelocity.y, myVelocity.z);
+		// float3 velocityTmp;
+		// velocityTmp.x = myVelocity.x;
+		// velocityTmp.y = myVelocity.y;
+		// velocityTmp.z = myVelocity.z;
 
-		velocityTmp = velocityTmp * (
-			1);
-		float3 odsun = versor(velocityTmp) * zaDaleko;
+		// velocityTmp = velocityTmp * (
+		// 	1);
+		// float3 odsun = versor(velocityTmp) * zaDaleko;
 
-		particle1 = make_float4(particle1.x + odsun.x,
-								particle1.y + odsun.y,
-								particle1.z + odsun.z,
-								0);
+		// particle1 = make_float4(particle1.x + odsun.x,
+		// 						particle1.y + odsun.y,
+		// 						particle1.z + odsun.z,
+		// 						0);
 
 	}
 
