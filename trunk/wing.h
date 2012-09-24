@@ -16,6 +16,7 @@ class Wing
 		float kat_natarcia;
 		float3 sila_nosna;
 		float move;
+		float factor;
 
 		Wing(float3 pos = make_float3(-10, 0, 4), float radius = 4, float length = 30)
 			: pos(pos), 
@@ -25,7 +26,8 @@ class Wing
 			wspol_unoszenia(1),
 			kat_natarcia(0.f),
 			sila_nosna(make_float3(0.f, 0.f, 0.f)),
-			move(0.2)
+			move(0.2),
+			factor(5.0f)
 		{};
 
 		void increase()
@@ -46,8 +48,12 @@ class Wing
 		}
 
 		float getForce()
-		{
-			return sqrt(sila_nosna.x * sila_nosna.x + sila_nosna.y * sila_nosna.y + sila_nosna.z * sila_nosna.z);
+		{   
+			float force =  sqrt(sila_nosna.x * sila_nosna.x + sila_nosna.y * sila_nosna.y + sila_nosna.z * sila_nosna.z) / factor;
+			if(pos.y >=  0)
+				return force;
+			else
+				return -force; 
 		}
 
 		void resetForce()

@@ -166,12 +166,12 @@ void reset(void)
     pauze = false;
 
 	// reset dataset
-	CUDA_SAFE_CALL( cudaMemcpy(d_particleData, h_particleData,
+	CUDA_SAFE_CALL(cudaMemcpy(d_particleData, h_particleData,
 							   8 * numBodies * sizeof(float), 
-							   cudaMemcpyHostToDevice) );
-    CUDA_SAFE_CALL( cudaMemcpy(d_wing, h_wing,
+							   cudaMemcpyHostToDevice));
+    CUDA_SAFE_CALL(cudaMemcpy(d_wing, h_wing,
                                sizeof(Wing), 
-                               cudaMemcpyHostToDevice) );
+                               cudaMemcpyHostToDevice));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -223,8 +223,8 @@ void runCuda(void)
     				      gStep, gApprx, gOffset, d_wing);
 
         CUDA_SAFE_CALL(cudaMemcpy(h_wing, d_wing,
-                       sizeof(Wing), 
-                       cudaMemcpyDeviceToHost));
+                                  sizeof(Wing), 
+                                  cudaMemcpyDeviceToHost));
     }
 
     // unmap buffer object
@@ -281,10 +281,14 @@ void display(void)
         glPushMatrix();
         glRotatef(270, 1.f, 0.f, 0.f);  //walec
         glTranslatef(h_wing->pos.x + h_wing->length / 2, 0, h_wing->getForce());
-        h_wing->resetForce();
         glutSolidCone(2, 10, 20, 2);    // o, r_top, r_bot, wys, ile katow, ?
         glPopMatrix();
         gluDeleteQuadric(b);
+
+        h_wing->resetForce();
+        CUDA_SAFE_CALL(cudaMemcpy(d_wing, h_wing,
+                                  sizeof(Wing), 
+                                  cudaMemcpyHostToDevice));
     }
 
 
@@ -461,7 +465,6 @@ void key(unsigned char key, int /*x*/, int /*y*/)
             exit(0);
             break;
         case 'r':
-        	// reset configuration
     		reset();
             //h_wing->resetWingPosition();
         	break;
@@ -473,11 +476,9 @@ void key(unsigned char key, int /*x*/, int /*y*/)
             pauze = !pauze;
             break;
         case '=':
-        	// increase point size
         	h_wing->increase();
         	break;
         case '-':
-        	// decrese point size
         	h_wing->decrease();
         	break;
     }
