@@ -243,6 +243,7 @@ void cudaComputeGalaxy(float4* pos, float4 * pdata, int width, int height,
     int sharedMemSize = BSIZE * sizeof(float4);
     galaxyKernel <<< grid, block, sharedMemSize >>> (pos, pdata, width, height, 
     											 	 step, apprx, offset, wing);
+
 }
 
 #endif
