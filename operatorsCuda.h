@@ -2,7 +2,7 @@
 #define OPERATORS_CUDA_HPP
 
 #include <cuda.h>
-
+/*
 __device__ float3 operator+(const float3& a, const float3& b)
 {
     return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
@@ -84,6 +84,6 @@ __device__ float4 operator*(const float4& a, float number)
 // {
 //     return make_float4(a.x + b.x, a.y + b.y, a.z + b.z, 0);
 // }
-
+*/
 
 #endif // OPERATORS_CUDA_HPP

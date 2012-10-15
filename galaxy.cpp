@@ -25,6 +25,7 @@
 #include <cuda_runtime_api.h>
 #include <cutil_gl_error.h>
 #include <cuda_gl_interop.h>
+#include <thrust/host_vector.h>
 
 #include "ParticleRenderer.h"
 #include "wing.h"
@@ -32,42 +33,42 @@
 
 ////////////////////////////////////////////////////////////////////////////////
 // simulation parameter
-float 	scaleFactor = 1.5f;		// 10.0f, 50
-float 	velFactor = 8.0f;			// 15.0f, 100
-float	massFactor = 120000.0f;	// 50000000.0,
-float 	gStep = 0.001f;				// 0.005f
-int 	gOffset = 0;
-int 	gApprx = 4;
+float   scaleFactor = 1.5f;     // 10.0f, 50
+float   velFactor = 8.0f;           // 15.0f, 100
+float   massFactor = 120000.0f; // 50000000.0,
+float   gStep = 0.001f;             // 0.005f
+int     gOffset = 0;
+int     gApprx = 4;
 
 // GL drah_wing object
 ParticleRenderer* renderer = 0;
-int 	numBodies = 16384;
-int 	gDrawMode = 1;
-float 	gPointSize = 3.0f; //1.0f;
-float	gSpriteSize = 0.8f;//scaleFactor*0.25f;
+int     numBodies = 16384;
+int     gDrawMode = 1;
+float   gPointSize = 3.0f; //1.0f;
+float   gSpriteSize = 0.8f;//scaleFactor*0.25f;
 
 // simulation data storage
-float* 	gPos = 0;
-float* 	gVel = 0;
-GLuint	gVBO = 0;				// 8 float (4 position, 4 color)
-float*	d_particleData = 0;		// device side particle data storage
-float*	h_particleData = 0;		// host side particle data storage
+float*  gPos = 0;
+float*  gVel = 0;
+GLuint  gVBO = 0;               // 8 float (4 position, 4 color)
+float*  d_particleData = 0;     // device side particle data storage
+float*  h_particleData = 0;     // host side particle data storage
 
 // view params
-int 	ox = 0, oy = 0;
-int 	buttonState        = 0;
-float 	camera_trans[]     = {0, 6*scaleFactor, -45*scaleFactor};
-float 	camera_rot[]       = {0, 0, 0};
-float 	camera_trans_lag[] = {0, 6*scaleFactor, -45*scaleFactor};
-float 	camera_rot_lag[]   = {0, 0, 0};
+int     ox = 0, oy = 0;
+int     buttonState        = 0;
+float   camera_trans[]     = {0, 6*scaleFactor, -45*scaleFactor};
+float   camera_rot[]       = {0, 0, 0};
+float   camera_trans_lag[] = {0, 6*scaleFactor, -45*scaleFactor};
+float   camera_rot_lag[]   = {0, 0, 0};
 const float inertia        = 0.1;
 
 float   sw = 1024.0f;
-float	sh = 768.0f;
+float   sh = 768.0f;
 
 // cuda related...
-int 	numBlocks = 1;
-int 	numThreadsPerBlock = 256;
+int     numBlocks = 1;
+int     numThreadsPerBlock = 256;
 
 // simulation data
 #define box 100
@@ -75,6 +76,7 @@ Wing* h_wing;
 Wing* d_wing;
 
 bool pauze = false;
+bool mySymKernel = true;
 
 // useful clamp macro
 #define LIMIT(x,min,max) { if ((x)>(max)) (x)=(max); if ((x)<(min)) (x)=(min);}
@@ -85,6 +87,7 @@ void init(int bodies);
 void reset(void);
 void initGL(void);
 void runCuda(void);
+void runMyCuda(void);
 void display(void);
 void reshape(int w, int h);
 void mouse(int button, int state, int x, int y);
@@ -151,24 +154,199 @@ void init(int bodies)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+//float mx,my,mz,Mx,My,Mz;
+void loadData(char* filename, int bodies)
+{
+    int skip = 49152 / bodies;
+    
+    FILE *fin;
+    
+    if ((fin = fopen(filename, "r")))
+    {
+        const int maxStringLenght = 256;
+        char buf[maxStringLenght];
+        float v[7];
+        int idx = 0;
+        
+        // allocate memory
+        gPos = (float*)malloc(sizeof(float)*bodies*4);
+        gVel = (float*)malloc(sizeof(float)*bodies*4);
+         
+    	for (int i=0; i< bodies; i++)
+    	{
+    		// depend on input size...
+    		for (int j=0; j < skip; j++)
+    			fgets(buf, maxStringLenght, fin);	// load line
+    		
+    		sscanf(buf, "%f %f %f %f %f %f %f", v+0, v+1, v+2, v+3, v+4, v+5, v+6);
+    		
+    		// update index
+    		idx = i * 4;
+    		
+    		// position
+    		gPos[idx+0] = v[1]*scaleFactor;
+    		gPos[idx+1] = v[2]*scaleFactor;
+    		gPos[idx+2] = v[3]*scaleFactor;
+    		
+    		// mass
+    		gPos[idx+3] = v[0]*massFactor;
+    		//printf("mass : %f\n", gPos[idx+3]);
+    		
+    		// velocity
+    		gVel[idx+0] = v[4]*velFactor;
+    		gVel[idx+1] = v[5]*velFactor;
+    		gVel[idx+2] = v[6]*velFactor;
+    		gVel[idx+3] = 1.0f;
+    	}   
+    }
+    else
+    {
+    	printf("cannot find file...: %s\n", filename);
+    	exit(0);
+    }
+	//printf("bulge min,max: %f %f %f %f %f %f\n", mx, my, mz, Mx, My, Mz);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+int main(int argc, char** argv)
+{
+    CUT_DEVICE_INIT(argc, argv);
+
+    // get number of SMs on this GPU
+    int devID;
+    cudaDeviceProp props;
+    CUDA_SAFE_CALL( cudaGetDevice(&devID) );
+    CUDA_SAFE_CALL( cudaGetDeviceProperties(&props, devID) );
+
+	// thread block size
+    int p = 256;	// width  (number of threads in col within block)
+    int q = 1;		// height (number of threads in row within block)
+	
+	// get total number of bodies
+    if (!cutGetCmdLineArgumenti(argc, (const char**) argv, "n", &numBodies))
+    	// default number of bodies is #SMs * 4 * CTA size
+    	//numBodies = p * q * 4 * props.multiProcessorCount;
+    	numBodies = 8192;
+
+	if (numBodies > 49152)
+	{
+		numBodies = 49152;
+		printf("maximun number of bodies is 49152.\n");
+	}
+		
+	// keep num of threads per block to 256
+    if (q * p > 256)
+    {
+        p = 256 / q;
+        printf("Setting p=%d, q=%d to maintain %d threads per block\n", p, q, 256);
+    }
+
+    if (q == 1 && numBodies < p)
+    {
+        p = numBodies;
+    }
+
+	// Data loading
+	if (numBodies % 4096 != 0)
+	{
+		printf("number of body must be mulples of 4096\n");
+		exit(0);
+	}
+	loadData((char*)"../../../src/wing/data/dubinski.tab", numBodies);
+		
+	// OpenGL: create app window
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
+	glutInitWindowSize(1024, 768);
+	char wtitle[256];
+	sprintf(wtitle, "CUDA Galaxy Simulation (%d bodies)", numBodies); 
+	glutCreateWindow(wtitle);
+    
+    // GL setup	
+	initGL();
+	
+	// Initialize nbody system...	
+    init(numBodies);
+    
+    // GL callback function
+    glutDisplayFunc(display);
+    glutReshapeFunc(reshape);
+    glutMouseFunc(mouse);
+    glutMotionFunc(motion);
+    glutKeyboardFunc(key);
+    glutSpecialFunc(special);
+    glutIdleFunc(idle);
+
+	//
+	framerateTitle(wtitle);
+	
+	// let's start main loop
+    glutMainLoop();
+
+	deleteVBO((GLuint*)&gVBO);
+
+	// clean up memory stuff
+    if (gPos)
+        free(gPos);
+    if (gVel)
+        free(gVel);
+	
+	if (renderer)
+		delete renderer;
+	
+    return 0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void reset(void)
 {
-   	// reset camera
-   	camera_trans[0] = 0; 
-   	camera_trans[1] = 6 * scaleFactor; 
-   	camera_trans[2] = -45 * scaleFactor;
-	camera_rot[0] = camera_rot[1] = camera_rot[2] = 0;
-	camera_trans_lag[0] = 0; 
-	camera_trans_lag[1] = 6 * scaleFactor; 
-	camera_trans_lag[2] = -45 * scaleFactor;
-	camera_rot_lag[0] = camera_rot_lag[1] = camera_rot_lag[2] = 0;
-	
+    // reset camera
+    camera_trans[0] = 0; 
+    camera_trans[1] = 6 * scaleFactor; 
+    camera_trans[2] = -45 * scaleFactor;
+    camera_rot[0] = camera_rot[1] = camera_rot[2] = 0;
+    camera_trans_lag[0] = 0; 
+    camera_trans_lag[1] = 6 * scaleFactor; 
+    camera_trans_lag[2] = -45 * scaleFactor;
+    camera_rot_lag[0] = camera_rot_lag[1] = camera_rot_lag[2] = 0;
+    
     pauze = false;
 
-	// reset dataset
-	CUDA_SAFE_CALL(cudaMemcpy(d_particleData, h_particleData,
-							   8 * numBodies * sizeof(float), 
-							   cudaMemcpyHostToDevice));
+    // reset dataset
+    CUDA_SAFE_CALL(cudaMemcpy(d_particleData, h_particleData,
+                               8 * numBodies * sizeof(float), 
+                               cudaMemcpyHostToDevice));
     CUDA_SAFE_CALL(cudaMemcpy(d_wing, h_wing,
                                sizeof(Wing), 
                                cudaMemcpyHostToDevice));
@@ -180,7 +358,7 @@ void initGL(void)
     glewInit();
     if (!glewIsSupported("GL_VERSION_2_0 "
                          "GL_VERSION_1_5 "
-			             "GL_ARB_multitexture "
+                         "GL_ARB_multitexture "
                          "GL_ARB_vertex_buffer_object")) 
     {
         fprintf(stderr, "Required OpenGL extensions missing.");
@@ -189,21 +367,24 @@ void initGL(void)
 
     glEnable(GL_DEPTH_TEST);
     glClearColor(0.0, 0.0, 0.0, 1.0);
-	
-	// particle renderer
+    
+    // particle renderer
     renderer = new ParticleRenderer(numBodies);
     createVBO((GLuint*)&gVBO);
     renderer->setVBO(gVBO, numBodies);
     renderer->setSpriteSize(0.4f);
     renderer->setShaders((char*)"../../../src/wing/data/sprite.vert", 
-    					 (char*)"../../../src/wing/data/sprite.frag");
+                         (char*)"../../../src/wing/data/sprite.frag");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // CUDA kernel interface
 extern "C" 
 void cudaComputeGalaxy(float4* pos, float4* pdata, int width, int height, 
-					   float step, int apprx, int offset, Wing* wing);
+                       float step, int apprx, int offset, Wing* wing);
+
+extern "C" 
+void runKernel(float4* pos, float4* pdata, int width, int height, float step, Wing* wing);
 
 ////////////////////////////////////////////////////////////////////////////////
 void runCuda(void)
@@ -212,15 +393,35 @@ void runCuda(void)
     float4* dptr;
     CUDA_SAFE_CALL( cudaGLMapBufferObject( (void**)&dptr, gVBO) );
 
-	// only compute 1/16 at one time
-	gOffset = (gOffset+1) % (gApprx);
-	
+    // only compute 1/16 at one time
+    gOffset = (gOffset+1) % (gApprx);
+    
     // execute the kernel
     // each block has 16x16 threads, grid 16xX: X will be decided by the # of bodies
     if(!pauze)
     {
         cudaComputeGalaxy(dptr, (float4*)d_particleData, 256, numBodies / 256, 
-    				      gStep, gApprx, gOffset, d_wing);
+                          gStep, gApprx, gOffset, d_wing);
+
+        CUDA_SAFE_CALL(cudaMemcpy(h_wing, d_wing,
+                                  sizeof(Wing), 
+                                  cudaMemcpyDeviceToHost));
+    }
+
+    // unmap buffer object
+    CUDA_SAFE_CALL( cudaGLUnmapBufferObject(gVBO) );  
+}
+
+void runMyCuda(void)
+{
+    // map OpenGL buffer object for writing from CUDA
+    float4* dptr;
+    CUDA_SAFE_CALL( cudaGLMapBufferObject( (void**)&dptr, gVBO) );
+
+    if(!pauze)
+    {
+        runKernel(dptr, (float4*)d_particleData, 256, numBodies / 256, 
+                         gStep, d_wing);
 
         CUDA_SAFE_CALL(cudaMemcpy(h_wing, d_wing,
                                   sizeof(Wing), 
@@ -235,7 +436,10 @@ void runCuda(void)
 void display(void)
 {
     // update simulation
-    runCuda();
+    if(mySymKernel)
+        runMyCuda();
+    else
+        runCuda();
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);  
     
@@ -365,19 +569,19 @@ void display(void)
         camera_rot_lag[c] += (camera_rot[c] - camera_rot_lag[c]) * inertia;
     }
     glTranslatef(camera_trans_lag[0], 
-		     camera_trans_lag[1], 
-		     camera_trans_lag[2]);
+             camera_trans_lag[1], 
+             camera_trans_lag[2]);
     glRotatef(camera_rot_lag[0], 1.0, 0.0, 0.0);
     glRotatef(camera_rot_lag[1], 0.0, 1.0, 0.0);
-	
-	// render bodies
+    
+    // render bodies
     renderer->setPointSize(gPointSize);
     renderer->setSpriteSize(gSpriteSize);
     renderer->display(gDrawMode);
-	
+    
     // update frame rate
-	framerateUpdate();
-	
+    framerateUpdate();
+    
     glutSwapBuffers();
 
     glutReportErrors();
@@ -452,103 +656,49 @@ void motion(int x, int y)
     }
     
     ox = x; oy = y;
-	glutPostRedisplay();	
+    glutPostRedisplay();    
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void key(unsigned char key, int /*x*/, int /*y*/)
 {
-	switch (key)
-	{
-    	case '\033':
+    switch (key)
+    {
+        case '\033':
         case 'q':
             exit(0);
             break;
         case 'r':
-    		reset();
+            reset();
             //h_wing->resetWingPosition();
-        	break;
+            break;
         case 'd':
-        	// change rendering mode
-        	gDrawMode = (gDrawMode+1) % 3;
-        	break;
+            // change rendering mode
+            gDrawMode = (gDrawMode+1) % 3;
+            break;
         case 'p':
             pauze = !pauze;
             break;
         case '=':
-        	h_wing->increase();
-        	break;
+            h_wing->increase();
+            break;
         case '-':
-        	h_wing->decrease();
-        	break;
+            h_wing->decrease();
+            break;
     }
-	glutPostRedisplay();
+    glutPostRedisplay();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void special(int /*key*/, int /*x*/, int /*y*/)
 {
-	glutPostRedisplay();
+    glutPostRedisplay();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 void idle(void)
 {
-	glutPostRedisplay();
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//float mx,my,mz,Mx,My,Mz;
-void loadData(char* filename, int bodies)
-{
-    int skip = 49152 / bodies;
-    
-    FILE *fin;
-    
-    if ((fin = fopen(filename, "r")))
-    {
-        const int maxStringLenght = 256;
-        char buf[maxStringLenght];
-        float v[7];
-        int idx = 0;
-        
-        // allocate memory
-        gPos = (float*)malloc(sizeof(float)*bodies*4);
-        gVel = (float*)malloc(sizeof(float)*bodies*4);
-         
-    	for (int i=0; i< bodies; i++)
-    	{
-    		// depend on input size...
-    		for (int j=0; j < skip; j++)
-    			fgets(buf, maxStringLenght, fin);	// load line
-    		
-    		sscanf(buf, "%f %f %f %f %f %f %f", v+0, v+1, v+2, v+3, v+4, v+5, v+6);
-    		
-    		// update index
-    		idx = i * 4;
-    		
-    		// position
-    		gPos[idx+0] = v[1]*scaleFactor;
-    		gPos[idx+1] = v[2]*scaleFactor;
-    		gPos[idx+2] = v[3]*scaleFactor;
-    		
-    		// mass
-    		gPos[idx+3] = v[0]*massFactor;
-    		//printf("mass : %f\n", gPos[idx+3]);
-    		
-    		// velocity
-    		gVel[idx+0] = v[4]*velFactor;
-    		gVel[idx+1] = v[5]*velFactor;
-    		gVel[idx+2] = v[6]*velFactor;
-    		gVel[idx+3] = 1.0f;
-    	}   
-    }
-    else
-    {
-    	printf("cannot find file...: %s\n", filename);
-    	exit(0);
-    }
-	//printf("bulge min,max: %f %f %f %f %f %f\n", mx, my, mz, Mx, My, Mz);
+    glutPostRedisplay();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -584,98 +734,6 @@ void deleteVBO( GLuint* vbo)
 
     *vbo = 0;
 }
-
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-int main(int argc, char** argv)
-{
-    CUT_DEVICE_INIT(argc, argv);
-
-    // get number of SMs on this GPU
-    int devID;
-    cudaDeviceProp props;
-    CUDA_SAFE_CALL( cudaGetDevice(&devID) );
-    CUDA_SAFE_CALL( cudaGetDeviceProperties(&props, devID) );
-
-	// thread block size
-    int p = 256;	// width  (number of threads in col within block)
-    int q = 1;		// height (number of threads in row within block)
-	
-	// get total number of bodies
-    if (!cutGetCmdLineArgumenti(argc, (const char**) argv, "n", &numBodies))
-    	// default number of bodies is #SMs * 4 * CTA size
-    	//numBodies = p * q * 4 * props.multiProcessorCount;
-    	numBodies = 8192;
-
-	if (numBodies > 49152)
-	{
-		numBodies = 49152;
-		printf("maximun number of bodies is 49152.\n");
-	}
-		
-	// keep num of threads per block to 256
-    if (q * p > 256)
-    {
-        p = 256 / q;
-        printf("Setting p=%d, q=%d to maintain %d threads per block\n", p, q, 256);
-    }
-
-    if (q == 1 && numBodies < p)
-    {
-        p = numBodies;
-    }
-
-	// Data loading
-	if (numBodies % 4096 != 0)
-	{
-		printf("number of body must be mulples of 4096\n");
-		exit(0);
-	}
-	loadData((char*)"../../../src/wing/data/dubinski.tab", numBodies);
-		
-	// OpenGL: create app window
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
-	glutInitWindowSize(1024, 768);
-	char wtitle[256];
-	sprintf(wtitle, "CUDA Galaxy Simulation (%d bodies)", numBodies); 
-	glutCreateWindow(wtitle);
-    
-    // GL setup	
-	initGL();
-	
-	// Initialize nbody system...	
-    init(numBodies);
-    
-    // GL callback function
-    glutDisplayFunc(display);
-    glutReshapeFunc(reshape);
-    glutMouseFunc(mouse);
-    glutMotionFunc(motion);
-    glutKeyboardFunc(key);
-    glutSpecialFunc(special);
-    glutIdleFunc(idle);
-
-	//
-	framerateTitle(wtitle);
-	
-	// let's start main loop
-    glutMainLoop();
-
-	deleteVBO((GLuint*)&gVBO);
-
-	// clean up memory stuff
-    if (gPos)
-        free(gPos);
-    if (gVel)
-        free(gVel);
-	
-	if (renderer)
-		delete renderer;
-	
-    return 0;
-}
-
 
 
 
