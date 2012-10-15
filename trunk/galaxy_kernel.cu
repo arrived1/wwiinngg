@@ -14,7 +14,7 @@
 
 extern Wing* h_wing;
 extern Wing* d_wing;
-
+/*
 __device__ float3 bodyBodyInteraction(float4& particle1, float4& myVelocity, float4 particle2, float3 ai)
 {
 	float3 p1 = make_float3(particle1.x, particle1.y, particle1.z);
@@ -233,16 +233,16 @@ __global__ void galaxyKernel(float4* pos, float4* pdata, unsigned int width,
 	pos[vLoc] = myVelocity;
 
 }
-
+*/
 extern "C" 
 void cudaComputeGalaxy(float4* pos, float4 * pdata, int width, int height, 
 					   float step, int apprx, int offset, Wing* wing)
 {
-    dim3 block(16, 16, 1);
-    dim3 grid(width / block.x, height / block.y, 1);
-    int sharedMemSize = BSIZE * sizeof(float4);
-    galaxyKernel <<< grid, block, sharedMemSize >>> (pos, pdata, width, height, 
-    											 	 step, apprx, offset, wing);
+    // dim3 block(16, 16, 1);
+    // dim3 grid(width / block.x, height / block.y, 1);
+    // int sharedMemSize = BSIZE * sizeof(float4);
+    // galaxyKernel <<< grid, block, sharedMemSize >>> (pos, pdata, width, height, 
+    // 											 	 step, apprx, offset, wing);
 
 }
 
